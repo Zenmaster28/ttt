@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>TTT Tracker</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+  <style>
+    .grid-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        grid-gap: 20px;
+    }
+    .x2-container {
+        display: grid;
+        grid-template-columns: 3fr 1fr;
+        grid-gap: 20px;
+    }
+    .col2-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-gap: 20px;
+    }
+    div.Xlarge {
+      font-size: 750%;
+    }
+    div.large {
+      font-size: 200%;
+    }
+    input.larger {
+        width: 20px;
+        height: 20px;
+    }
+
+  </style>
+</head>
+<body>    
+
+<div class="container-xxl">
+  <h1>TTT Tracker  
+  <button class="btn btn-success btn-sm saveData-btn" id="saveButton">Save Data</button>
+  <button class="btn btn-danger btn-sm restoreData-btn" id="restoreButton">Restore Data</button>
+  <button class="btn btn-warning btn-sm reset-btn" id="resetButton">Reset to default</button>
+</h1> 
+  <div class="x2-container">
+  <div>
+  <br/>
+  <table class="table table-bordered table-sm data-table" id="riderList">
+    <thead>
+      <th class="table-secondary">Active</th>
+      <th class="table-secondary">Name</th>
+      <th class="table-secondary">Pull Time</th>
+      <th class="table-secondary">Target Watts</th>
+      <th class="table-secondary">Action</th>
+    </thead>
+    <tbody id="tbodyid">    
+
+    </tbody>
+  </table>
+  <form>    
+    <div class="grid-container">
+  
+    <div class="form-group">
+      <label>Name:</label>
+      <input type="text" name="name" id="newName" class="form-control" value="" required="">
+    </div>
+  
+    <div class="form-group">
+      <label>Pull Time:</label>
+      <input type="number" step="5" name="pullTime" class="form-control" value="" required="">
+    </div>
+  
+    <div class="form-group">
+        <label>Target Watts:</label>
+        <input type="text" name="targetWatts" class="form-control" value="" required="">
+      </div>
+      
+        </div>
+        <button type="submit" class="btn btn-primary save-btn">Add Rider</button>            
+  </form> 
+  <br>  
+  <textarea id="notes" name="notes" rows="10" cols="100" placeholder="Notes..."></textarea>
+  
+  </div>
+  <div id="infoPanel">
+    <button class="btn btn-success btn-lg startButton" id="startButton" disabled>Start</button> 
+    <div id="countdown" class="Xlarge">
+      
+    </div>
+    <div id="ridingNow" class="large">
+      
+    </div>
+    <div id="nextUp" class="large">
+      
+    </div>
+    <div id="thirdUp" class="large">
+      
+    </div>
+    <div>
+      
+      <!-- <input class="btn btn-success" type="button" id="startButton" onclick="doCountdown()" value="Start"> -->
+      <!-- <input type="button" id="nextRiderBtn" onclick="startNextRider()" value="Next Rider"> -->
+      <button class="btn btn-info btn-lg nextButton" id="nextButton" disabled>Next</button> 
+    </div>
+    </div>
+
+
+
+</div>
+</div>
+
+   
+
+<script type="text/javascript">   
+    var PullTimer;
+    var currentRider;
+    var nextRider;
+    var thirdRider;
+    var editChecked;
+    var arrLocalStorage= new Array();
+
+    $("form").submit(function(e){
+        e.preventDefault();
+        startButton.disabled = ""
+        var activeRider = "<input type='checkbox' class='larger' checked>";
+        var name = $("input[name='name']").val();
+        var pullTime = $("input[name='pullTime']").val();    
+        var targetWatts = $("input[name='targetWatts']").val();
+        $(".data-table tbody").append("<tr data-name='"+name+"' data-pullTime='"+pullTime+"' data-targetWatts='"+targetWatts+"'><td>"+activeRider+"</td><td>"+name+"</td><td>"+pullTime+"</td><td>"+targetWatts+"</td><td><button class='btn btn-success btn-sm btn-start'>Start</button><button class='btn btn-info btn-sm btn-edit'>Edit</button><button class='btn btn-danger btn-sm btn-delete'>Delete</button></td></tr>");
+        $("input[name='name']").val('');
+        $("input[name='pullTime']").val('');
+        $("input[name='targetWatts']").val('');
+        newName.focus();
+    });
+
+    $("body").on("click", ".btn-delete", function(){
+      var name = $(this).parents("tr").attr('data-name');
+        let text = "Delete " + name + "?";
+        if (confirm(text) == true) {
+          $(this).parents("tr").remove();
+        } else {
+          //text = "You canceled!";
+        }
+        
+        
+    });
+
+    $("body").on("click", ".btn-start", function(){
+        var rowIndex = $(this).parents("tr")[0].rowIndex;
+        nextRider = rowIndex;
+        startNextRider();
+        restoreButton.disabled = "true";
+        resetButton.disabled = "true";
+        if (startButton.innerHTML === "Start") 
+        {          
+          startButton.innerHTML = "Stop";
+          startButton.className = 'btn btn-danger btn-lg startButton';
+          nextButton.disabled = ""
+          var delButtons = $(".btn.btn-danger.btn-xs.btn-delete");
+          delButtonCount = delButtons.length;
+          i = 0;
+          do {
+            delButtons[i].disabled="true"
+            i++
+          } while (i < delButtonCount)
+        } else if (startButton.innerHTML === "Resume") 
+        {          
+          
+          startButton.innerHTML = "Stop";
+          startButton.className = 'btn btn-danger btn-lg startButton';
+          nextButton.disabled = ""
+          var delButtons = $(".btn.btn-danger.btn-xs.btn-delete");
+          delButtonCount = delButtons.length;
+          i = 0;
+          do {
+            delButtons[i].disabled="true"
+            i++
+          } while (i < delButtonCount)
+        }
+        
+    });
+
+    $("body").on("click", ".startButton", function(){
+        doCountdown();
+    });
+
+    $("body").on("click", ".nextButton", function(){
+        startNextRider();
+    });
+
+    $("body").on("click", ".reset-btn", function(){
+      let text = "The current rider list will be cleared.  Proceed?";
+        if (confirm(text) == true) {
+      $("#tbodyid").empty();
+      startButton.disabled = "true";
+      nextButton.disabled = "true";
+      startButton.innerHTML = "Start";
+      countdown.innerHTML = "";
+      ridingNow.innerHTML = "";
+      nextUp.innerHTML = "";
+      thirdUp.innerHTML = "";
+      nextButton.innerHTML = "Next";
+      notes.value = "";
+        }
+    });
+
+    $("body").on("click", ".saveData-btn", function(){
+      var myTab = document.getElementById('riderList');
+      var myArray = new Array();
+      var myNotes = document.getElementById('notes');
+      var rowLength = myTab.rows.length - 1;
+
+      for (row = 1; row <= rowLength; row++) {
+        for (c = 1; c < 4; c++) { // EACH CELL IN A ROW.
+          var element = myTab.rows.item(row).cells[c];
+          var curtext = myArray.push("'" + element.childNodes[0].textContent + "'");
+        }
+      }
+      localStorage.setItem("riderData",JSON.stringify(myArray));
+      localStorage.setItem("notes", myNotes.value)
+      saveButton.innerHTML = "Saved!";
+      savedTimer = setInterval(savedTimer,3000);
+    });
+
+    $("body").on("click", ".restoreData-btn", function(){
+        let text = "The current rider list will be overwritten with saved data.  Proceed?";
+        if (confirm(text) == true) {
+          var restoreNotes = localStorage.getItem("notes");
+          notes.value = restoreNotes;
+          $("#tbodyid").empty();
+          var restoreArray = new Array();
+          restoreArray=JSON.parse(localStorage.getItem("riderData"))
+          rowCount=(restoreArray.length / 3)
+          for (row = 1; row <= rowCount; row++) {
+            firstItem = (3 * row) - 3;
+            var activeRider = "<input type='checkbox' class='larger' checked>";
+            var name = restoreArray[firstItem].replace(/\'/g,"");
+            var pullTime = restoreArray[firstItem+1].replace(/\'/g,"");    
+            var targetWatts = restoreArray[firstItem+2].replace(/\'/g,"");
+            $(".data-table tbody").append("<tr data-name='"+name+"' data-pullTime='"+pullTime+"' data-targetWatts='"+targetWatts+"'><td>"+activeRider+"</td><td>"+name+"</td><td>"+pullTime+"</td><td>"+targetWatts+"</td><td><button class='btn btn-success btn-sm btn-start'>Start</button><button class='btn btn-info btn-sm btn-edit'>Edit</button><button class='btn btn-danger btn-sm btn-delete'>Delete</button></td></tr>");
+            $("input[name='name']").val('');
+            $("input[name='pullTime']").val('');
+            $("input[name='targetWatts']").val('');
+          }
+          } else {
+            
+          }
+        
+        startButton.disabled = "";
+    });
+
+    $("body").on("click", ".btn-edit", function(){
+        var isActive = $(this).parents("tr")[0].getElementsByTagName("input")[0];
+        if (isActive.checked) {
+          editChecked = true;
+        } else {
+          editChecked = false;
+        }
+        nextButton.disabled="true";
+        var name = $(this).parents("tr").attr('data-name');
+        var pullTime = $(this).parents("tr").attr('data-pullTime');
+        var targetWatts = $(this).parents("tr").attr('data-targetWatts');
+        $(this).parents("tr").find("td:eq(0)").html("<button class='btn btn-info btn-sm btn-up'>&ShortUpArrow;</button><button class='btn btn-info btn-sm btn-down'>&ShortDownArrow;</button>");
+        $(this).parents("tr").find("td:eq(1)").html('<input name="edit_name" value="'+name+'" size="5">');
+        $(this).parents("tr").find("td:eq(2)").html('<input type="number" step="5" id="new_pullTime" name="edit_pullTime" value="'+pullTime+'" size="5">');
+        $(this).parents("tr").find("td:eq(3)").html('<input name="edit_targetWatts" value="'+targetWatts+'" size="5">');
+        $(this).parents("tr").find("td:eq(4)").prepend("<button id='updateButton' class='btn btn-info btn-sm btn-update'>Save</button><button id='cancelButton' class='btn btn-warning btn-sm btn-cancel'>Cancel</button>")
+        $(this).parents("tr").find(".btn-start").hide();        
+        $(this).hide();
+        new_pullTime.focus();
+        new_pullTime.select();
+        new_pullTime.addEventListener("keydown", function(event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          document.getElementById("updateButton").click();
+        }
+        if (event.key === "Escape") {
+          //event.preventDefault();
+          document.getElementById("cancelButton").click();
+        }
+      });
+    });
+    
+    $("body").on("click", ".btn-up", function(){
+          index = $(this).parents("tr")[0].rowIndex;
+      var rows = document.getElementById("riderList").rows;
+          parent = rows[index].parentNode;
+          if(index > 1){
+            parent.insertBefore(rows[index],rows[index - 1]);
+            // when the row go up the index will be equal to index - 1
+            index--;
+          }
+    });
+
+    $("body").on("click", ".btn-down", function(){
+      index = $(this).parents("tr")[0].rowIndex;
+      var rows = document.getElementById("riderList").rows;
+          parent = rows[index].parentNode;
+          if(index < rows.length -1){
+            parent.insertBefore(rows[index + 1],rows[index]);
+            // when the row go up the index will be equal to index - 1
+            index++;
+          }
+    });
+
+    $("body").on("click", ".btn-cancel", function(){
+        var name = $(this).parents("tr").attr('data-name');
+        var pullTime = $(this).parents("tr").attr('data-pullTime');
+        var targetWatts = $(this).parents("tr").attr('data-targetWatts');    
+        nextButton.disabled="";    
+        if (editChecked) {
+          $(this).parents("tr").find("td:eq(0)").html("<input type='checkbox' class='larger' checked>");
+        } else {
+          $(this).parents("tr").find("td:eq(0)").html("<input type='checkbox' class='larger' >");
+        }
+        $(this).parents("tr").find("td:eq(1)").text(name);
+        $(this).parents("tr").find("td:eq(2)").text(pullTime);
+        $(this).parents("tr").find("td:eq(3)").text(targetWatts);
+        $(this).parents("tr").find(".btn-edit").show();
+        $(this).parents("tr").find(".btn-start").show();
+        $(this).parents("tr").find(".btn-update").remove();
+        $(this).parents("tr").find(".btn-cancel").remove();
+    });   
+
+    $("body").on("click", ".btn-update", function(){
+      nextButton.disabled="";
+        var name = $(this).parents("tr").find("input[name='edit_name']").val();
+        var pullTime = $(this).parents("tr").find("input[name='edit_pullTime']").val();
+        var targetWatts = $(this).parents("tr").find("input[name='edit_targetWatts']").val();
+        if (editChecked) {
+          $(this).parents("tr").find("td:eq(0)").html("<input type='checkbox' class='larger' checked>");
+        } else {
+          $(this).parents("tr").find("td:eq(0)").html("<input type='checkbox' class='larger' >");
+        }
+        $(this).parents("tr").find("td:eq(1)").text(name);
+        $(this).parents("tr").find("td:eq(2)").text(pullTime);
+        $(this).parents("tr").find("td:eq(3)").text(targetWatts);
+        $(this).parents("tr").attr('data-name', name);
+        $(this).parents("tr").attr('data-pullTime', pullTime);
+        $(this).parents("tr").attr('data-targetWatts', targetWatts);
+        $(this).parents("tr").find(".btn-edit").show();
+        $(this).parents("tr").find(".btn-start").show();
+        $(this).parents("tr").find(".btn-cancel").remove();
+        $(this).parents("tr").find(".btn-update").remove();
+        //countdown.innerHTML=pullTime;
+    });
+
+    function savedTimer() {
+      saveButton.innerHTML = "Save Data";
+    }
+
+    function countdownTimer() {      
+      timeleft--;
+      countdown.innerHTML = timeleft;    
+      var riderTable = document.getElementById('riderList');
+      var tabLength = riderTable.rows.length - 1;
+      currentRiderName = riderTable.rows.item(currentRider).cells[1].innerHTML;
+      ridingNow.innerHTML = "1:" + currentRiderName;
+      var i = currentRider;
+      do {
+          i++;
+          if (i > tabLength) {
+              i = 1;
+          }        
+          nextRider = i;   
+          var isActive = riderTable.rows[nextRider].cells[0].getElementsByTagName("input")[0];       
+      } while (eval(isActive.checked === false))
+
+      nextRiderName = riderTable.rows.item(nextRider).cells[1].innerHTML;
+      nextUp.innerHTML = "2:" + nextRiderName;
+      nextButton.innerHTML = "Next Rider (" + nextRiderName + ")";
+      
+      var i = nextRider;
+      do {
+          i++;
+          if (i > tabLength) {
+              i = 1;
+          }        
+          thirdRider = i;   
+          var isActive = riderTable.rows[thirdRider].cells[0].getElementsByTagName("input")[0];       
+      } while (eval(isActive.checked === false))
+      thirdRiderName = riderTable.rows.item(thirdRider).cells[1].innerHTML;
+      thirdUp.innerHTML = "3:" + thirdRiderName;
+
+    } 
+    function doCountdown() {
+        if (startButton.innerHTML === "Stop") 
+        {
+          $("#riderList tr:nth-child("+currentRider+") td:nth-child(5)").find(".btn-edit").prop('disabled', false);
+          clearInterval(PullTimer);
+          startButton.innerHTML = "Resume";
+          startButton.className = 'btn btn-success btn-lg startButton'
+          nextButton.disabled = "true";
+          restoreButton.disabled = "";
+          resetButton.disabled = "";
+          var delButtons = $(".btn.btn-danger.btn-sm.btn-delete");
+          delButtonCount = delButtons.length;
+          i = 0;
+          do {
+            delButtons[i].disabled="";
+            i++;
+          } while (i < delButtonCount)
+        } else if (startButton.innerHTML === "Resume") 
+        {
+          $("#riderList tr:nth-child("+currentRider+") td:nth-child(5)").find(".btn-edit").prop('disabled', true);
+          nextButton.disabled = "";
+          restoreButton.disabled = "true";
+          resetButton.disabled = "true";
+          PullTimer = setInterval(countdownTimer,1000);
+          startButton.innerHTML = "Stop";
+          startButton.className = 'btn btn-danger btn-lg startButton';
+          var delButtons = $(".btn.btn-danger.btn-sm.btn-delete");
+          delButtonCount = delButtons.length;
+          i = 0;
+          do {
+            delButtons[i].disabled="true"
+            i++
+          } while (i < delButtonCount)
+        } else {
+          nextButton.disabled = "";
+          restoreButton.disabled = "true";
+          resetButton.disabled = "true";
+          var riderTable = document.getElementById('riderList');
+          var objTimerCells = riderTable.rows.item(1).cells;
+          var currentRiderRow = riderTable.rows.item(1);
+          currentRiderRow.className="table-success";
+          
+          //var timeleft = objTimerCells.item(2).value;
+          var nums = objTimerCells.item(2).innerHTML;
+          timeleft = nums;
+          countdown.innerHTML = timeleft;
+          PullTimer = setInterval(countdownTimer,1000);
+          currentRider = 1;
+          nextRider = 2; 
+          $("#riderList tr:nth-child("+currentRider+") td:nth-child(5)").find(".btn-edit").prop('disabled', true);
+          startButton.innerHTML = "Stop";
+          startButton.className = 'btn btn-danger btn-lg startButton';
+          var delButtons = $(".btn.btn-danger.btn-sm.btn-delete");
+          delButtonCount = delButtons.length;
+          i = 0;
+          do {
+            delButtons[i].disabled="true"
+            i++
+          } while (i < delButtonCount)
+        }     
+    }
+
+    function startNextRider()
+  {
+    $("#riderList tr:nth-child("+currentRider+") td:nth-child(5)").find(".btn-edit").prop('disabled', false);
+    var lastRider = currentRider;
+    currentRider = nextRider;
+    clearInterval(PullTimer);
+    var riderTable = document.getElementById('riderList');
+    var objTimerCells = riderTable.rows.item(currentRider).cells;
+    var lastRiderRow = riderTable.rows.item(lastRider);
+    lastRiderRow.className="default";
+    var currentRiderRow = riderTable.rows.item(currentRider);
+    currentRiderRow.className="table-success";
+    $("#riderList tr:nth-child("+currentRider+") td:nth-child(5)").find(".btn-edit").prop('disabled', true);
+    //var timeleft = objTimerCells.item(2).value;
+    var nums = objTimerCells.item(2).innerHTML;
+    timeleft = nums;
+    timeleft++;
+    countdown.innerHTML = timeleft;
+    countdownTimer();
+    PullTimer = setInterval(countdownTimer,1000);
+  }
+ 
+
+</script>
+</body>
+</html>
